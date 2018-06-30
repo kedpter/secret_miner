@@ -31,13 +31,17 @@ import psutil
 import time
 import re
 import datetime
+from sys import platform
+import signal
+
+package_name = "secret_miner"
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG)
-# logging.basicConfig(filename='sminer.log', level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
+log_path = pkg_resources.resource_filename(package_name, 'sminer.log')
+logging.basicConfig(filename=log_path, level=logging.DEBUG)
 
 # package info
-package_name = "secret_miner"
 default_trigger_time = "19:00"
 default_exit_time = "7:00"
 
@@ -53,9 +57,14 @@ config.read(user_cfg)
 
 # miner exe path
 CPU_MINER = "minerd.exe"
+if platform == "darwin":
+    CPU_MINER = "minerd"
 GPU_NVIDIA_MINER = "ethminer"
 cpu_miner_path = pkg_resources.resource_filename(
     package_name, os.path.join('data', 'cpuminer', CPU_MINER))
+if platform == "darwin":
+    cpu_miner_path = pkg_resources.resource_filename(
+        package_name, os.path.join('data', CPU_MINER))
 gpu_miner_path = pkg_resources.resource_filename(
     package_name, os.path.join('data', GPU_NVIDIA_MINER))
 
@@ -79,10 +88,35 @@ class DeviceNotSupportedError(Exception):
     """device is not supported"""
 
 
+def kill_proc_tree(pid,
+                   sig=signal.SIGTERM,
+                   include_parent=True,
+                   timeout=None,
+                   on_terminate=None):
+    """Kill a process tree (including grandchildren) with signal
+    "sig" and return a (gone, still_alive) tuple.
+    "on_terminate", if specified, is a callabck function which is
+    called as soon as a child terminates.
+    """
+    if pid == os.getpid():
+        raise RuntimeError("I refuse to kill myself")
+    parent = psutil.Process(pid)
+    children = parent.children(recursive=True)
+    if include_parent:
+        children.append(parent)
+    for p in children:
+        p.send_signal(sig)
+    gone, alive = psutil.wait_procs(
+        children, timeout=timeout, callback=on_terminate)
+    return (gone, alive)
+
+
 class Runner:
     def __init__(self, dtype):
         self.dtype = dtype
         self.run_miner_cmd = []
+        self.process = None
+        self.miner = None
 
     def is_device_free(self):
         if self.dtype == 0:
@@ -104,7 +138,7 @@ class Runner:
             utilzs = subprocess.check_output(checkutilz_cmd)
             for u in utilzs.split():
                 # take 99 % to 99,
-                ui = int(re.search(r'\d+', u).group())
+                ui = int(re.search(r'\d+', u.decode('utf-8')).group())
                 if (ui > utilz_threhold):
                     logger.info("gpu is busy")
                     return False
@@ -113,6 +147,11 @@ class Runner:
             raise DeviceNotSupportedError(
                 "unsupported device [cpu or gpu only]")
         return False
+
+    def run_cmd(self, cmd):
+        logger.info('+++++++')
+        self.miner = subprocess.Popen(cmd)
+        logger.info('proc pid: %s', self.miner.pid)
 
     def run_miner_if_free(self):
         """TODO: docstring"""
@@ -123,7 +162,6 @@ class Runner:
                 cpu_miner_path, '-o', address, '-O', '{}:{}'.format(
                     username, password)
             ]
-            click.echo(' '.join(self.run_miner_cmd))
         elif self.dtype == 1:
             # parse address -> scheme + netloc
             r = urlparse(address)
@@ -140,21 +178,32 @@ class Runner:
 
             # start if resource(cpu or gpu) is free
             if (self.is_device_free()):
-                logger.info('running miner on cpu')
-                # subprocess.call(self.run_miner_cmd)
+                logger.info('start miner in another thread')
+                self.run_cmd(self.run_miner_cmd)
+                # self.process = multiprocessing.Process(
+                #     target=self.run_cmd, args=(self.run_miner_cmd, ))
+                # self.process.start()
 
     def kill_miner_if_exists(self):
-        cur_proc = None
-        for proc in psutil.process_iter():
-            if self.dtype == 0 and proc.name() == CPU_MINER:
-                cur_proc = proc
-            if self.dtype == 1 and proc.name() == GPU_NVIDIA_MINER:
-                cur_proc = proc
-
-        if cur_proc:
-            proc.kill()
+        if (not self.is_device_free() and self.miner):
+            logger.info("=====miner pid: %s", self.miner.pid)
+            self.miner.terminate()
+            # self.process.terminate()
             logger.info("kill miner: miner is just killed")
-        logger.info("kill miner: no miner program found")
+        else:
+            logger.info("kill miner: miner not found")
+        # cur_proc = None
+        # for proc in psutil.process_iter():
+        #     if self.dtype == 0 and proc.name() == CPU_MINER:
+        #         cur_proc = proc
+        #     if self.dtype == 1 and proc.name() == GPU_NVIDIA_MINER:
+        #         cur_proc = proc
+
+        # if cur_proc:
+        #     proc.kill()
+        #     logger.info("kill miner: miner is just killed")
+        # else:
+        #     logger.info("kill miner: no miner program found")
 
 
 @click.command()
@@ -168,7 +217,6 @@ class Runner:
 @click.option(
     '-d',
     '--device',
-    required=True,
     type=click.Choice(['0', '1']),
     help='device type: cpu[0] gpu[1]')
 @click.option('-u', '--namepass', help='user:password')
@@ -177,11 +225,17 @@ class Runner:
     '--tstart', default=default_trigger_time, help='secret mining start time')
 @click.option(
     '--tend', default=default_exit_time, help='secret mining end time')
-def save_config(save, test, device, namepass, address, tstart, tend):
-    if test and device:
+def save_and_test(save, test, device, namepass, address, tstart, tend):
+    if test:
+        (address, username, password, device, tstart, tend) = read_config()
         r = Runner(int(device))
         if test == 'run':
+            logger.info("run_miner_if_free start")
             r.run_miner_if_free()
+            logger.info("run_miner_if_free end")
+            time.sleep(10)
+            logger.info("kill miner if exists start")
+            r.kill_miner_if_exists()
         if test == 'kill':
             r.kill_miner_if_exists()
     elif save and device and namepass and address:
@@ -204,8 +258,8 @@ def save_config(save, test, device, namepass, address, tstart, tend):
             config.write(f)
             logger.info('save config success !')
     else:
-        with click.Context(save_config) as ctx:
-            click.echo(save_config.get_help(ctx))
+        with click.Context(save_and_test) as ctx:
+            click.echo(save_and_test.get_help(ctx))
 
 
 class ConfigTimeError(Exception):
@@ -222,7 +276,7 @@ def get_time_by_cfgtime(now, cfgtime):
         raise ConfigTimeError("time parse error")
         return
 
-    now.replace(hour=t.hour, minute=t.minute)
+    t = now.replace(hour=t.hour, minute=t.minute)
     return t
 
 
@@ -252,27 +306,35 @@ def main():
             end = get_time_by_cfgtime(now, tend)
 
             logger.info('start secret miner service')
+            logger.info('now: ' + now.strftime("%Y-%m-%d %H:%M:%S"))
+            logger.info('start: ' + start.strftime("%Y-%m-%d %H:%M:%S"))
+            logger.info('end: ' + end.strftime("%Y-%m-%d %H:%M:%S"))
 
             r = Runner(device)
 
+            logger.info('Check if the correct time to run miner ?')
             if start > end:
                 if now > start or now < end:
+                    logger.info('Now is the correct time to run miner')
                     r.run_miner_if_free()
                 else:
+                    logger.info('Now is the correct time to kill miner')
                     r.kill_miner_if_exists()
             else:
                 if now > start and now < end:
+                    logger.info('Now is the correct time to run miner')
                     r.run_miner_if_free()
                 else:
+                    logger.info('Now is the correct time to kill miner')
                     r.kill_miner_if_exists()
 
             time.sleep(5)
     else:
-        save_config()
+        save_and_test()
     # # if arg[2] == '-s', save config (format: user:pass@address)
     # if (len(sys.argv) > 2 and sys.argv[1] == '-s'):
     #     user_input = sys.argv[2]
-    #     save_config(user_input)
+    #     save_and_test(user_input)
     #     pass
 
 

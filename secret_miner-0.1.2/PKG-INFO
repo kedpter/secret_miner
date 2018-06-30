@@ -1,0 +1,68 @@
+Metadata-Version: 1.1
+Name: secret_miner
+Version: 0.1.2
+Summary: mining bitcoin secretly
+Home-page: https://github.com/kedpter/secret_miner
+Author: UNKNOWN
+Author-email: 790476448@qq.com
+License: MIT license
+Description: ============
+        secret_miner
+        ============
+        
+        
+        .. image:: https://img.shields.io/pypi/v/secret_miner.svg
+                :target: https://pypi.python.org/pypi/secret_miner
+        
+        .. image:: https://img.shields.io/travis/kedpter/secret_miner.svg
+                :target: https://travis-ci.org/kedpter/secret_miner
+        
+        .. image:: https://readthedocs.org/projects/secret-miner/badge/?version=latest
+                :target: https://secret-miner.readthedocs.io/en/latest/?badge=latest
+                :alt: Documentation Status
+        
+        
+        
+        
+        mining bitcoin secretly
+        
+        
+        * Free software: MIT license
+        * Documentation: https://secret-miner.readthedocs.io.
+        
+        
+        Features
+        --------
+        
+        * TODO
+        
+        Credits
+        -------
+        
+        This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypackage`_ project template.
+        
+        .. _Cookiecutter: https://github.com/audreyr/cookiecutter
+        .. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
+        
+        
+        =======
+        History
+        =======
+        
+        0.1.0 (2018-06-29)
+        ------------------
+        
+        * First release on PyPI.
+        
+Keywords: secret_miner
+Platform: UNKNOWN
+Classifier: Development Status :: 2 - Pre-Alpha
+Classifier: Intended Audience :: Developers
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Natural Language :: English
+Classifier: Programming Language :: Python :: 2
+Classifier: Programming Language :: Python :: 2.7
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.4
+Classifier: Programming Language :: Python :: 3.5
+Classifier: Programming Language :: Python :: 3.6

@@ -73,5 +73,5 @@ install: clean ## install the package to the active Python's site-packages
 pypi-upload:
 	rm -rf dist/*
 	python setup.py sdist bdist_wheel
-	twin upload dist/*
+	twine upload dist/*
 
