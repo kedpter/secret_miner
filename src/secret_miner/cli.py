@@ -135,10 +135,12 @@ class Runner:
                 'nvidia-smi', '--query-gpu=utilization.gpu',
                 '--format=csv,noheader'
             ]
+            logger.info(checkutilz_cmd)
             utilzs = subprocess.check_output(checkutilz_cmd)
-            for u in utilzs.split():
+            utilzs = utilzs.decode('utf-8')
+            for u in utilzs.splitlines():
                 # take 99 % to 99,
-                ui = int(re.search(r'\d+', u.decode('utf-8')).group())
+                ui = int(re.search(r'\d+', u).group())
                 if (ui > utilz_threhold):
                     logger.info("gpu is busy")
                     return False
@@ -188,7 +190,7 @@ class Runner:
         if (not self.is_device_free() and self.miner):
             logger.info("=====miner pid: %s", self.miner.pid)
             self.miner.terminate()
-            # self.process.terminate()
+            self.miner = None
             logger.info("kill miner: miner is just killed")
         else:
             logger.info("kill miner: miner not found")
@@ -282,25 +284,13 @@ def get_time_by_cfgtime(now, cfgtime):
 
 def main():
     """miner running secretly on cpu or gpu"""
-    # # cpu
-    # if type == '0':
-    #     schedule.every().day.at(script_trigger_time).do(run_cpu_miner)
-    #     pass
-    # # gpu
-    # elif type == '1':
-
-    #     schedule.every().day.at(script_trigger_time).do(run_gpu_miner)
-    #     pass
-
-    # schedule.every().day.at(script_exit_time).do(sys.exit)
-
-    # while True:
-    #     schedule.run_pending()
 
     # if no arg, run secret miner
     if (len(sys.argv) == 1):
+        (address, username, password, device, tstart, tend) = read_config()
+        r = Runner(device)
+
         while True:
-            (address, username, password, device, tstart, tend) = read_config()
             now = datetime.datetime.now()
             start = get_time_by_cfgtime(now, tstart)
             end = get_time_by_cfgtime(now, tend)
@@ -309,8 +299,6 @@ def main():
             logger.info('now: ' + now.strftime("%Y-%m-%d %H:%M:%S"))
             logger.info('start: ' + start.strftime("%Y-%m-%d %H:%M:%S"))
             logger.info('end: ' + end.strftime("%Y-%m-%d %H:%M:%S"))
-
-            r = Runner(device)
 
             logger.info('Check if the correct time to run miner ?')
             if start > end:
