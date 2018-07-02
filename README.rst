@@ -1,37 +1,12 @@
-============
-secret_miner
-============
+Secret\_miner
+-------------
 
+This project is intended to run bitcoin miner under a period of time in
+every day.
 
-.. image:: https://img.shields.io/pypi/v/secret_miner.svg
-        :target: https://pypi.python.org/pypi/secret_miner
+Currently Supported : - In linux (GPU),
+`ethminer <https://github.com/ethereum-mining/ethminer/releases>`__ - In
+windows(CPU),
+`cpuminer <https://sourceforge.net/projects/cpuminer/files/>`__
 
-.. image:: https://img.shields.io/travis/kedpter/secret_miner.svg
-        :target: https://travis-ci.org/kedpter/secret_miner
-
-.. image:: https://readthedocs.org/projects/secret-miner/badge/?version=latest
-        :target: https://secret-miner.readthedocs.io/en/latest/?badge=latest
-        :alt: Documentation Status
-
-
-
-
-mining bitcoin secretly
-
-
-* Free software: MIT license
-* Documentation: https://secret-miner.readthedocs.io.
-
-
-Features
---------
-
-* TODO
-
-Credits
--------
-
-This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypackage`_ project template.
-
-.. _Cookiecutter: https://github.com/audreyr/cookiecutter
-.. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
+You can download another version and replace the miner if you want.
