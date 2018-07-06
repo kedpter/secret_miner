@@ -68,6 +68,8 @@ if platform == "darwin":
 gpu_miner_path = pkg_resources.resource_filename(
     package_name, os.path.join('data', GPU_NVIDIA_MINER))
 
+interval = 5 * 60  # s
+
 # for proc in psutil.process_iter():
 #     # check whether the process name matches
 #     if proc.name() == PROCNAME:
@@ -128,9 +130,9 @@ class Runner:
                     return False
             return True
         elif self.dtype == 1:
-            # if nvidia-smi any card utilization % > 60
+            # if nvidia-smi any card memory utilization % > 80
             # assume gpu busy
-            utilz_threhold = 60
+            utilz_threhold = 80
             checkutilz_cmd = [
                 'nvidia-smi', '--query-gpu=utilization.gpu',
                 '--format=csv,noheader'
@@ -139,9 +141,9 @@ class Runner:
             utilzs = subprocess.check_output(checkutilz_cmd)
             utilzs = utilzs.decode('utf-8')
             for u in utilzs.splitlines():
-                # take 99 % to 99,
+                # convert 99 % to 99,
                 ui = int(re.search(r'\d+', u).group())
-                if (ui > utilz_threhold):
+                if (ui > utilz_threhold or self.miner):
                     logger.info("gpu is busy")
                     return False
             return True
@@ -187,7 +189,7 @@ class Runner:
                 # self.process.start()
 
     def kill_miner_if_exists(self):
-        if (not self.is_device_free() and self.miner):
+        if (self.miner):
             logger.info("=====miner pid: %s", self.miner.pid)
             self.miner.terminate()
             self.miner = None
@@ -316,7 +318,7 @@ def main():
                     logger.info('Now is the correct time to kill miner')
                     r.kill_miner_if_exists()
 
-            time.sleep(5)
+            time.sleep(interval)
     else:
         save_and_test()
     # # if arg[2] == '-s', save config (format: user:pass@address)
